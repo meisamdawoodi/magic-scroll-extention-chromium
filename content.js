@@ -332,7 +332,7 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
                     document.body.style.cursor = 'grab';
                     document.body.style.userSelect = 'none';
                     showCursorEffect(e.clientX, e.clientY);
-                    playActivationSound();
+                    // playActivationSound();
                 }
             }, settings.holdDuration);
         }
@@ -386,7 +386,7 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
             document.body.style.cursor = 'default';
             document.body.style.userSelect = '';
             hideCursorEffect();
-            playDeactivationSound();
+            // playDeactivationSound();
         }
         if (isDraggingMinimap) {
             isDraggingMinimap = false;
