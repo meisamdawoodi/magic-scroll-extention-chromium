@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Intelligent Scroll Settings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #333; }
+        .container { max-width: 600px; margin: 2rem auto; padding: 1.5rem; background-color: #ffffff; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        h1 { font-size: 1.75rem; font-weight: bold; margin-bottom: 1.5rem; color: #1f2937; }
+        label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #374151; }
+        input[type="range"], input[type="number"] { width: 100%; margin-bottom: 1rem; }
+        input[type="checkbox"] { margin-right: 0.5rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        .flex-container { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+        .flex-container input { flex-grow: 1; }
+        .color-picker-wrapper { display: flex; align-items: center; }
+        .color-box { width: 24px; height: 24px; border: 1px solid #ccc; margin-left: 0.5rem; border-radius: 4px; }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container">
+        <h1>Intelligent Scroll Settings</h1>
+
+        <div class="form-group">
+            <label class="flex items-center">
+                <input type="checkbox" id="enableDragScroll"> Enable Drag Scroll (Hold Left Click)
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label for="holdDuration">Hold Duration (ms): <span id="holdDurationValue"></span></label>
+            <input type="range" id="holdDuration" min="50" max="3000" step="50">
+        </div>
+
+        <div class="form-group">
+            <label for="scrollSpeed">Scroll Speed: <span id="scrollSpeedValue"></span></label>
+            <input type="range" id="scrollSpeed" min="0.1" max="5" step="0.1">
+        </div>
+
+        <hr class="my-6">
+
+        <div class="form-group">
+            <label class="flex items-center">
+                <input type="checkbox" id="enableMinimap"> Enable Minimap Scrollbar
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label for="minimapWidth">Minimap Width (px): <span id="minimapWidthValue"></span></label>
+            <input type="range" id="minimapWidth" min="20" max="80" step="5">
+        </div>
+
+        <div class="form-group">
+            <label for="minimapOpacity">Minimap Base Transparency: <span id="minimapOpacityValue"></span></label>
+            <input type="range" id="minimapOpacity" min="0.01" max="0.2" step="0.01">
+        </div>
+
+        <div class="form-group">
+            <label for="minimapHoverOpacity">Minimap Hover Transparency: <span id="minimapHoverOpacityValue"></span></label>
+            <input type="range" id="minimapHoverOpacity" min="0.1" max="0.5" step="0.05">
+        </div>
+
+        <div class="form-group">
+            <label for="thumbOpacity">Minimap Thumb Transparency: <span id="thumbOpacityValue"></span></label>
+            <input type="range" id="thumbOpacity" min="0.1" max="0.8" step="0.05">
+        </div>
+
+        <div class="form-group">
+            <label for="thumbHoverOpacity">Minimap Thumb Hover Transparency: <span id="thumbHoverOpacityValue"></span></label>
+            <input type="range" id="thumbHoverOpacity" min="0.3" max="1.0" step="0.05">
+        </div>
+        
+        <div class="form-group">
+            <label for="minimapPosition">Minimap Position:</label>
+            <select id="minimapPosition" class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <option value="right">Right</option>
+                <option value="left">Left</option>
+            </select>
+        </div>
+
+        <hr class="my-6">
+
+        <div class="form-group">
+            <label for="cursorEffectSize">Cursor Effect Size (px): <span id="cursorEffectSizeValue"></span></label>
+            <input type="range" id="cursorEffectSize" min="20" max="100" step="5">
+        </div>
+
+        <div class="form-group">
+            <label for="cursorEffectColor">Cursor Effect Color (RGB: 0-255, separated by commas):</label>
+            <div class="flex-container color-picker-wrapper">
+                <input type="text" id="cursorEffectColor" class="w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <div id="colorPreview" class="color-box"></div>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center text-gray-600 text-sm">Settings saved automatically.</div>
+    </div>
+    <script src="options.js"></script>
+</body>
+</html>
