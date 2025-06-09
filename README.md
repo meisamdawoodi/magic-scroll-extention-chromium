@@ -1,10 +1,12 @@
-# Intelligent Scroll
+# Magic Scroll Extension
 
+Note for Users Without Middle Mouse Click
+If you don't have a middle mouse click or find it difficult to scroll through web pages using the middle click, the Magic Scroll Extension is a perfect solution for you. With our innovative drag-to-scroll feature and minimap scrollbar, you can easily navigate long pages without the need for a middle click. Enjoy a seamless browsing experience and take full advantage of the web's content!
 Smart scrolling and minimap for improved web navigation.
 
 ## Features
 
-Intelligent Scroll enhances your browsing experience with two main features:
+Magic Scroll Extension enhances your browsing experience with two main features:
 
 *   **Drag-to-Scroll (Hand Tool):** Click and hold your left mouse button anywhere on a webpage to drag and scroll. This provides a smooth, intuitive way to navigate long pages, similar to using a hand tool in document viewers. A subtle visual effect indicates when the feature is active.
 *   **Minimap Scrollbar:** A highly configurable minimap appears on the side of your screen, giving you a bird's-eye view of the entire page. You can quickly see your current position and click or drag on the minimap's thumb to jump to any part of the page.
@@ -24,7 +26,7 @@ Intelligent Scroll enhances your browsing experience with two main features:
 
 ## Customization
 
-Intelligent Scroll offers a range of options to tailor its behavior to your preferences. You can access these settings by clicking on the extension icon in your browser toolbar and selecting "Options" (or by navigating to the extension management page and finding its options).
+Magic Scroll extension offers a range of options to tailor its behavior to your preferences. You can access these settings by clicking on the extension icon in your browser toolbar and selecting "Options" (or by navigating to the extension management page and finding its options).
 
 Key settings include:
 
@@ -49,7 +51,7 @@ Key settings include:
 Since this extension is not yet published on the Chrome Web Store (or other browser extension marketplaces), you can install it by following these steps:
 
 1.  **Download the code:**
-    *   Clone this repository: `git clone https://github.com/your-username/your-repository-name.git` (Replace with the actual repository URL if available)
+    *   Clone this repository: `git clone https://github.com/meisamdawoodi/magic-scroll-extention-chromium.git`
     *   Or, download the repository as a ZIP file and extract it on your computer.
 2.  **Open your browser's extension page:**
     *   For Google Chrome or Microsoft Edge: Type `chrome://extensions` into the address bar and press Enter.
@@ -62,7 +64,7 @@ Since this extension is not yet published on the Chrome Web Store (or other brow
     *   Select the main folder that contains the `manifest.json` file.
     *   Click "Select Folder" or "Open".
 
-The Intelligent Scroll extension should now be installed and active in your browser.
+The Magic scroll extension should now be installed and active in your browser.
 
 ## Contributing
 
