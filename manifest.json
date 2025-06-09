@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "Intelligent Scroll",
+    "name": "Magic Scroll Extention(scroll websites like PDF, with hand tool)",
     "version": "1.0",
     "description": "Smart scrolling and minimap for improved web navigation.",
     "icons": {
