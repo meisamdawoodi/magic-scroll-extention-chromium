@@ -1,90 +1,92 @@
-// content.js - این اسکریپت در تمام صفحات وب اجرا می شود.
+// content.js - This script executes on all web pages.
 
-// یک پرچم برای جلوگیری از بارگذاری مجدد اسکریپت در صورت تزریق چندگانه
+// Flag to prevent re-initialization if the script is injected multiple times.
 if (window.__INTELLIGENT_SCROLL_LOADED__) {
     console.warn('Intelligent Scroll: Script already loaded. Skipping re-initialization.');
 } else {
-    window.__INTELLIGENT_SCROLL_LOADED__ = true; // علامت گذاری اسکریپت به عنوان بارگذاری شده
+    window.__INTELLIGENT_SCROLL_LOADED__ = true; // Mark script as loaded.
 
-    let isDraggingPage = false; // وضعیت کشیدن صفحه (حالت دست)
-    let isMouseDown = false; // وضعیت فشرده بودن دکمه ماوس
-    let pressTimer; // تایمر برای تشخیص نگه داشتن کلیک
-    let startX, startY; // مختصات شروع کشیدن
-    let scrollLeft, scrollTop; // موقعیت اسکرول صفحه در زمان شروع کشیدن
+    // State variables for drag scrolling.
+    let isDraggingPage = false;
+    let isMouseDown = false;
+    let pressTimer;
+    let startX, startY;
+    let scrollLeft, scrollTop;
+    let currentScrollableElement = null; // Stores the specific element being scrolled.
 
-    // تنظیمات پیش فرض اکستنشن
-    let settings = {
-        holdDuration: 250, // مدت زمان نگه داشتن کلیک برای فعال شدن اسکرول دست
-        dragThreshold: 5,  // حداقل حرکت ماوس برای لغو تایمر نگه داشتن (برای انتخاب متن)
-        minimapWidth: 40,  // عرض Minimap
-        minimapOpacity: 0.03, // شفافیت پایه Minimap
-        minimapHoverOpacity: 0.15, // شفافیت Minimap هنگام هاور
-        thumbOpacity: 0.2, // شفافیت Thumb در Minimap
-        thumbHoverOpacity: 0.5, // شفافیت Thumb هنگام هاور
-        cursorEffectColor: '0,123,255', // رنگ افکت نشانگر (RGB)
-        cursorEffectSize: 40, // اندازه افکت نشانگر
-        scrollSpeed: 1.0, // سرعت اسکرول در حالت کشیدن
-        minimapPosition: 'right', // موقعیت Minimap: 'right' یا 'left'
-        enableDragScroll: true, // فعال/غیرفعال کردن اسکرول دست
-        enableMinimap: true // فعال/غیرفعال کردن Minimap
+    // Hardcoded settings (previously from options page).
+    const settings = {
+        holdDuration: 250,          // Time (ms) to hold left-click for drag scroll activation.
+        dragThreshold: 5,           // Min mouse movement (pixels) to cancel hold timer.
+        minimapWidth: 40,           // Width of the Minimap scrollbar.
+        minimapOpacity: 0.03,       // Base transparency of Minimap.
+        minimapHoverOpacity: 0.15,  // Transparency of Minimap on hover.
+        thumbOpacity: 0.2,          // Transparency of the Minimap thumb.
+        thumbHoverOpacity: 0.5,     // Transparency of the Minimap thumb on hover.
+        cursorEffectColor: '0,123,255', // RGB color for the cursor effect.
+        cursorEffectSize: 40,       // Size of the cursor effect.
+        scrollSpeed: 1.0,           // Scrolling speed multiplier for drag scroll.
+        minimapPosition: 'right',   // Position of Minimap: 'right' or 'left'.
+        enableDragScroll: true,     // Enable/disable drag scroll.
+        enableMinimap: true,        // Enable/disable Minimap.
+        linkOpenHoldDuration: 2000  // Time (ms) to hold left-click on a link to open in new tab.
     };
 
     let audioContext = null;
     let activationOscillator = null;
     let deactivationOscillator = null;
 
-    // تابع برای راه اندازی Web Audio API برای صداها
+    // Initializes Web Audio API for sound effects.
     function initializeAudioContext() {
         if (audioContext === null) {
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                console.log('Intelligent Scroll: AudioContext initialized.');
             } catch (e) {
                 console.error('Intelligent Scroll: Web Audio API not supported or failed to initialize:', e);
-                audioContext = null; // Reset to null if failed
+                audioContext = null;
             }
         }
     }
 
-    // تابع برای ایجاد و پخش صدای فعال سازی
+    // Plays a subtle sound on drag scroll activation.
     function playActivationSound() {
         if (!audioContext) {
             initializeAudioContext();
-            if (!audioContext) return; // If context still null, cannot play
+            if (!audioContext) return;
         }
 
         try {
-            if (activationOscillator) activationOscillator.stop(); // Stop any previous sound
+            if (activationOscillator) activationOscillator.stop();
             activationOscillator = audioContext.createOscillator();
-            activationOscillator.type = 'sine'; // موج سینوسی برای صدای نرم تر
-            activationOscillator.frequency.setValueAtTime(440, audioContext.currentTime); // C4
+            activationOscillator.type = 'sine';
+            activationOscillator.frequency.setValueAtTime(440, audioContext.currentTime);
             
             const gainNode = audioContext.createGain();
-            gainNode.gain.setValueAtTime(0.05, audioContext.currentTime); // صدای خیلی کم
-            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1); // محو شدن سریع
+            gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
 
             activationOscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
             
             activationOscillator.start();
-            activationOscillator.stop(audioContext.currentTime + 0.1); // پخش کوتاه
+            activationOscillator.stop(audioContext.currentTime + 0.1);
         } catch (e) {
             console.error('Intelligent Scroll: Failed to play activation sound:', e);
         }
     }
 
-    // تابع برای ایجاد و پخش صدای غیر فعال سازی
+    // Plays a subtle sound on drag scroll deactivation.
     function playDeactivationSound() {
         if (!audioContext) {
             initializeAudioContext();
-            if (!audioContext) return; // If context still null, cannot play
+            if (!audioContext) return;
         }
 
         try {
-            if (deactivationOscillator) deactivationOscillator.stop(); // Stop any previous sound
+            if (deactivationOscillator) deactivationOscillator.stop();
             deactivationOscillator = audioContext.createOscillator();
             deactivationOscillator.type = 'sine';
-            deactivationOscillator.frequency.setValueAtTime(330, audioContext.currentTime); // G3
+            deactivationOscillator.frequency.setValueAtTime(330, audioContext.currentTime);
             
             const gainNode = audioContext.createGain();
             gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
@@ -94,16 +96,13 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
             gainNode.connect(audioContext.destination);
             
             deactivationOscillator.start();
-            deactivationOscillator.stop(audioContext.currentTime + 0.1); // پخش کوتاه
+            deactivationOscillator.stop(audioContext.currentTime + 0.1);
         } catch (e) {
             console.error('Intelligent Scroll: Failed to play deactivation sound:', e);
         }
     }
 
-    // === ایجاد عناصر UI در ابتدا ===
-    // این عناصر باید در ابتدای اسکریپت ایجاد و به DOM اضافه شوند تا قبل از دسترسی به آن ها
-    // توسط توابعی مانند applySettings() مطمئن باشیم که وجود دارند.
-
+    // === UI Elements Creation ===
     const cursorEffect = document.createElement('div');
     cursorEffect.style.cssText = `
         position: fixed;
@@ -128,8 +127,8 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
         cursor: pointer;
         border-top-left-radius: 10px;
         border-bottom-left-radius: 10px;
-        border-top-right-radius: 10px; /* برای تقارن در صورت قرارگیری در سمت چپ */
-        border-bottom-right-radius: 10px; /* برای تقارن در صورت قرارگیری در سمت چپ */
+        border-top-right-radius: 10px;
+        border-bottom-right-radius: 10px;
     `;
     document.body.appendChild(minimapScrollbar);
 
@@ -144,33 +143,22 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
     `;
     minimapScrollbar.appendChild(minimapThumb);
 
-    // تابع برای بارگذاری تنظیمات از حافظه اکستنشن
-    function loadSettings() {
-        chrome.storage.local.get(settings, (items) => {
-            Object.assign(settings, items); // اعمال تنظیمات ذخیره شده بر روی تنظیمات پیش فرض
-            applySettings(); // اعمال تنظیمات روی عناصر UI
-        });
-    }
-
-    // تابع برای اعمال تنظیمات به عناصر UI
-    function applySettings() {
-        // اعمال تنظیمات اسکرول با کشیدن
+    // Initial setup for UI elements based on hardcoded settings.
+    function initializeUI() {
         if (!settings.enableDragScroll) {
-            document.body.style.cursor = ''; // ریست نشانگر
-            document.body.style.userSelect = ''; // فعال سازی مجدد انتخاب متن
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
             hideCursorEffect();
             isDraggingPage = false;
             isMouseDown = false;
             if (pressTimer) clearTimeout(pressTimer);
         }
 
-        // اعمال تنظیمات Minimap
         if (settings.enableMinimap) {
             minimapScrollbar.style.display = 'block';
             minimapScrollbar.style.width = `${settings.minimapWidth}px`;
             minimapScrollbar.style.backgroundColor = `rgba(0, 0, 0, ${settings.minimapOpacity})`;
 
-            // تنظیم موقعیت Minimap (راست یا چپ)
             if (settings.minimapPosition === 'right') {
                 minimapScrollbar.style.right = '0';
                 minimapScrollbar.style.left = 'auto';
@@ -192,27 +180,14 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
             minimapScrollbar.style.display = 'none';
         }
 
-        // اعمال تنظیمات افکت نشانگر
         cursorEffect.style.width = `${settings.cursorEffectSize}px`;
         cursorEffect.style.height = `${settings.cursorEffectSize}px`;
         cursorEffect.style.background = `radial-gradient(circle, rgba(${settings.cursorEffectColor},0.7) 0%, rgba(${settings.cursorEffectColor},0) 70%)`;
 
-        updateMinimapThumb(); // اطمینان از به روز رسانی موقعیت Thumb
+        updateMinimapThumb();
     }
 
-    // گوش دادن به تغییرات تنظیمات از صفحه آپشن ها
-    chrome.storage.local.onChanged.addListener((changes, namespace) => {
-        if (namespace === 'local') {
-            for (let key in changes) {
-                if (settings.hasOwnProperty(key)) {
-                    settings[key] = changes[key].newValue;
-                }
-            }
-            applySettings();
-        }
-    });
-
-    // توابع مدیریت افکت نشانگر ماوس
+    // Functions to manage cursor effect visibility.
     function showCursorEffect(x, y) {
         cursorEffect.style.left = `${x}px`;
         cursorEffect.style.top = `${y}px`;
@@ -225,7 +200,7 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
         cursorEffect.style.transform = 'translate(-50%, -50%) scale(0)';
     }
 
-    // === منطق Minimap Scrollbar ===
+    // === Minimap Scrollbar Logic ===
     minimapScrollbar.addEventListener('mouseenter', () => {
         if (settings.enableMinimap) {
             minimapScrollbar.style.backgroundColor = `rgba(0, 0, 0, ${settings.minimapHoverOpacity})`;
@@ -240,12 +215,15 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
         }
     });
 
-    // تابع برای به روز رسانی موقعیت و اندازه Thumb در Minimap
+    // Updates the position and size of the Minimap thumb.
     function updateMinimapThumb() {
         if (!settings.enableMinimap || !minimapScrollbar || !minimapThumb) {
             return;
         }
 
+        // Determine the actual scrollable content height.
+        // For standard pages, this is document.documentElement.scrollHeight.
+        // For specific scrollable divs, this would be their scrollHeight.
         const totalHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
         const viewportHeight = window.innerHeight;
         const currentScroll = window.scrollY;
@@ -264,30 +242,40 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
         minimapThumb.style.top = `${thumbTop}px`;
     }
 
-    // گوش دادن به رویدادهای اسکرول و تغییر اندازه پنجره برای به روز رسانی Minimap
+    // Event listeners for scroll and resize to update Minimap.
     window.addEventListener('scroll', updateMinimapThumb);
     window.addEventListener('resize', updateMinimapThumb);
-    updateMinimapThumb(); // فراخوانی اولیه برای تنظیم Minimap
+    updateMinimapThumb(); // Initial call to set up Minimap.
 
     let isDraggingMinimap = false;
-    let minimapClickY;
+    let minimapThumbOffsetFromMouse = 0; // Offset of mouse click from top of the thumb.
 
     minimapScrollbar.addEventListener('mousedown', function(e) {
-        if (e.button === 0 && settings.enableMinimap) {
-            isDraggingMinimap = true;
-            minimapClickY = e.clientY;
-            e.preventDefault();
+        if (e.button === 0 && settings.enableMinimap) { // Left click
+            e.preventDefault(); // Prevent text selection.
             document.body.style.userSelect = 'none';
             minimapScrollbar.style.cursor = 'grabbing';
-            
-            const minimapHeight = minimapScrollbar.clientHeight;
-            const thumbHeight = minimapThumb.clientHeight;
-            const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+            isDraggingMinimap = true;
 
-            if (e.target !== minimapThumb) {
-                const clickRatio = (e.clientY - minimapScrollbar.getBoundingClientRect().top) / minimapHeight;
-                const newScrollTop = clickRatio * scrollableHeight;
-                window.scrollTo({ top: newScrollTop, behavior: 'auto' });
+            const minimapRect = minimapScrollbar.getBoundingClientRect();
+            const thumbRect = minimapThumb.getBoundingClientRect();
+            
+            if (e.target === minimapThumb) {
+                // If clicked directly on the thumb, calculate offset.
+                minimapThumbOffsetFromMouse = e.clientY - thumbRect.top;
+            } else {
+                // If clicked on the scrollbar (not thumb), jump thumb to click position.
+                let newThumbTop = e.clientY - minimapRect.top - (thumbRect.height / 2); // Center thumb on click.
+                
+                // Clamp newThumbTop to minimap bounds.
+                newThumbTop = Math.max(0, Math.min(newThumbTop, minimapRect.height - thumbRect.height));
+                
+                const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const scrollRatio = newThumbTop / (minimapRect.height - thumbRect.height);
+                window.scrollTo({ top: scrollRatio * scrollableHeight, behavior: 'auto' });
+                
+                // Recalculate offset after the jump to ensure smooth dragging from new position.
+                minimapThumbOffsetFromMouse = e.clientY - minimapThumb.getBoundingClientRect().top;
             }
         }
     });
@@ -295,15 +283,17 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
     document.addEventListener('mousemove', function(e) {
         if (!isDraggingMinimap) return;
 
-        const minimapHeight = minimapScrollbar.clientHeight;
-        const thumbHeight = minimapThumb.clientHeight;
+        const minimapRect = minimapScrollbar.getBoundingClientRect();
+        const thumbRect = minimapThumb.getBoundingClientRect();
         const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
 
-        let newThumbTop = e.clientY - minimapScrollbar.getBoundingClientRect().top - minimapClickY;
+        // Calculate new thumb top based on mouse movement relative to its initial click point.
+        let newThumbTop = (e.clientY - minimapRect.top) - minimapThumbOffsetFromMouse;
 
-        newThumbTop = Math.max(0, Math.min(newThumbTop, minimapHeight - thumbHeight));
+        // Clamp newThumbTop to minimap bounds.
+        newThumbTop = Math.max(0, Math.min(newThumbTop, minimapRect.height - thumbRect.height));
 
-        const scrollRatio = newThumbTop / (minimapHeight - thumbHeight);
+        const scrollRatio = newThumbTop / (minimapRect.height - thumbRect.height);
         const newScrollY = scrollRatio * scrollableHeight;
 
         window.scrollTo({ top: newScrollY, behavior: 'auto' });
@@ -317,24 +307,65 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
         }
     });
 
-    // === منطق پیمایش صفحه با نگه داشتن و کشیدن (ابزار دست) ===
-    document.addEventListener('mousedown', function(e) {
-        if (e.button === 0 && !minimapScrollbar.contains(e.target) && settings.enableDragScroll) {
-            isMouseDown = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            scrollLeft = window.scrollX;
-            scrollTop = window.scrollY;
+    // Helper to find the actual scrollable container.
+    function findScrollableContainer(element) {
+        let current = element;
+        while (current && current !== document.body && current !== document.documentElement) {
+            const style = window.getComputedStyle(current);
+            // Check for vertical scrollability.
+            if ((style.overflowY === 'scroll' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflow === 'auto') && current.scrollHeight > current.clientHeight) {
+                return current;
+            }
+            current = current.parentNode;
+        }
+        return document.documentElement; // Default to documentElement (window scroll)
+    }
 
-            pressTimer = setTimeout(() => {
-                if (isMouseDown && !isDraggingMinimap) {
-                    isDraggingPage = true;
-                    document.body.style.cursor = 'grab';
-                    document.body.style.userSelect = 'none';
-                    showCursorEffect(e.clientX, e.clientY);
-                    // playActivationSound();
-                }
-            }, settings.holdDuration);
+    // === Drag Scroll (Hand Tool) Logic ===
+    let linkClickTimer = null; // Timer for holding click on a link
+    let linkTarget = null;     // Element that was clicked on
+
+    document.addEventListener('mousedown', function(e) {
+        if (e.button === 0) { // Left click
+            // Check if click is on a link or child of a link
+            const targetLink = e.target.closest('a');
+            if (targetLink) {
+                linkTarget = targetLink;
+                // Store initial mouse position for link hold duration check
+                startX = e.clientX;
+                startY = e.clientY;
+                // Start timer for opening link in new tab
+                linkClickTimer = setTimeout(() => {
+                    // Check if mouse hasn't moved significantly
+                    if (Math.abs(e.clientX - startX) < settings.dragThreshold && Math.abs(e.clientY - startY) < settings.dragThreshold) {
+                         // Open link in new tab
+                        window.open(linkTarget.href, '_blank');
+                    }
+                    linkClickTimer = null; // Reset timer
+                }, settings.linkOpenHoldDuration);
+            }
+
+            // Start drag scroll logic if not on minimap/thumb and drag scroll is enabled
+            if (!minimapScrollbar.contains(e.target) && settings.enableDragScroll) {
+                isMouseDown = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                currentScrollableElement = findScrollableContainer(e.target); // Find the specific scrollable element
+                
+                // Store initial scroll positions of the identified scrollable element.
+                scrollLeft = currentScrollableElement.scrollLeft || window.scrollX;
+                scrollTop = currentScrollableElement.scrollTop || window.scrollY;
+
+                pressTimer = setTimeout(() => {
+                    if (isMouseDown && !isDraggingMinimap && !linkClickTimer) { // Ensure not dragging minimap or holding link
+                        isDraggingPage = true;
+                        document.body.style.cursor = 'grab';
+                        document.body.style.userSelect = 'none';
+                        showCursorEffect(e.clientX, e.clientY);
+                        playActivationSound(); // Play sound on activation
+                    }
+                }, settings.holdDuration);
+            }
         }
     });
 
@@ -344,49 +375,67 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
             cursorEffect.style.top = `${e.clientY}px`;
         }
 
-        if (!isDraggingPage && !isMouseDown) return;
-
-        if (isMouseDown && !isDraggingPage) {
+        if (linkClickTimer) {
+            // If mouse moves too much, cancel link hold timer
             if (Math.abs(e.clientX - startX) > settings.dragThreshold || Math.abs(e.clientY - startY) > settings.dragThreshold) {
-                clearTimeout(pressTimer);
-                isMouseDown = false;
+                clearTimeout(linkClickTimer);
+                linkClickTimer = null;
+            }
+        }
+
+        if (!isDraggingPage && !isMouseDown) return; // Not dragging page and mouse not down.
+
+        if (isMouseDown && !isDraggingPage) { // Mouse is down, but drag scroll not activated yet.
+            if (Math.abs(e.clientX - startX) > settings.dragThreshold || Math.abs(e.clientY - startY) > settings.dragThreshold) {
+                clearTimeout(pressTimer); // Cancel timer if mouse moves significantly.
+                isMouseDown = false; // Reset mouse down state.
                 return;
             }
         }
 
         if (isDraggingPage) {
-            e.preventDefault();
+            e.preventDefault(); // Prevent default browser actions (e.g., text selection).
             const deltaX = (e.clientX - startX) * settings.scrollSpeed;
             const deltaY = (e.clientY - startY) * settings.scrollSpeed;
 
-            window.scrollTo(scrollLeft - deltaX, scrollTop - deltaY);
-        }
-    });
-
-    document.addEventListener('mouseup', function(e) {
-        if (e.button === 0) {
-            isMouseDown = false;
-            clearTimeout(pressTimer);
-
-            if (isDraggingPage) {
-                isDraggingPage = false;
-                document.body.style.cursor = 'default';
-                document.body.style.userSelect = '';
-                hideCursorEffect();
-                playDeactivationSound();
+            // Apply scroll to the identified scrollable element.
+            if (currentScrollableElement === document.documentElement) {
+                window.scrollTo(scrollLeft - deltaX, scrollTop - deltaY);
+            } else {
+                currentScrollableElement.scrollLeft = scrollLeft - deltaX;
+                currentScrollableElement.scrollTop = scrollTop - deltaY;
             }
         }
     });
 
+    document.addEventListener('mouseup', function(e) {
+        if (e.button === 0) { // Left click released.
+            isMouseDown = false;
+            if (pressTimer) clearTimeout(pressTimer); // Clear any pending timer.
+            if (linkClickTimer) clearTimeout(linkClickTimer); // Clear link hold timer on mouse up.
+
+            if (isDraggingPage) {
+                isDraggingPage = false;
+                document.body.style.cursor = 'default';
+                document.body.style.userSelect = ''; // Re-enable text selection.
+                hideCursorEffect();
+                playDeactivationSound(); // Play sound on deactivation.
+            }
+            linkTarget = null; // Reset link target.
+        }
+    });
+
     window.addEventListener('blur', function() {
+        // Reset states if window loses focus (e.g., Alt+Tab).
         if (isDraggingPage || isMouseDown) {
-            clearTimeout(pressTimer);
+            if (pressTimer) clearTimeout(pressTimer);
+            if (linkClickTimer) clearTimeout(linkClickTimer); // Clear link hold timer on blur.
             isDraggingPage = false;
             isMouseDown = false;
             document.body.style.cursor = 'default';
             document.body.style.userSelect = '';
             hideCursorEffect();
-            // playDeactivationSound();
+            playDeactivationSound();
         }
         if (isDraggingMinimap) {
             isDraggingMinimap = false;
@@ -395,7 +444,7 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
         }
     });
 
-    // === فراخوانی های اولیه ===
-    loadSettings(); // بارگذاری و اعمال تنظیمات
-    initializeAudioContext(); // راه اندازی AudioContext
+    // === Initial Calls ===
+    initializeUI();
+    initializeAudioContext();
 }
