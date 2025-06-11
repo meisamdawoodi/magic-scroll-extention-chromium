@@ -1,4 +1,4 @@
-// options.js - برای مدیریت تنظیمات اکستنشن
+// options.js - Logic for managing extension settings.
 
 document.addEventListener('DOMContentLoaded', restoreOptions);
 
@@ -8,6 +8,8 @@ const elements = {
     holdDurationValue: document.getElementById('holdDurationValue'),
     scrollSpeed: document.getElementById('scrollSpeed'),
     scrollSpeedValue: document.getElementById('scrollSpeedValue'),
+    linkOpenHoldDuration: document.getElementById('linkOpenHoldDuration'),
+    linkOpenHoldDurationValue: document.getElementById('linkOpenHoldDurationValue'),
     enableMinimap: document.getElementById('enableMinimap'),
     minimapWidth: document.getElementById('minimapWidth'),
     minimapWidthValue: document.getElementById('minimapWidthValue'),
@@ -31,6 +33,7 @@ function saveOptions() {
         enableDragScroll: elements.enableDragScroll.checked,
         holdDuration: parseInt(elements.holdDuration.value),
         scrollSpeed: parseFloat(elements.scrollSpeed.value),
+        linkOpenHoldDuration: parseInt(elements.linkOpenHoldDuration.value),
         enableMinimap: elements.enableMinimap.checked,
         minimapWidth: parseInt(elements.minimapWidth.value),
         minimapOpacity: parseFloat(elements.minimapOpacity.value),
@@ -51,6 +54,9 @@ function restoreOptions() {
         enableDragScroll: true,
         holdDuration: 250,
         dragThreshold: 5, // Not exposed in options, but part of default
+        scrollSpeed: 1.0,
+        linkOpenHoldDuration: 2000,
+        enableMinimap: true,
         minimapWidth: 40,
         minimapOpacity: 0.03,
         minimapHoverOpacity: 0.15,
@@ -58,15 +64,15 @@ function restoreOptions() {
         thumbHoverOpacity: 0.5,
         cursorEffectColor: '0,123,255',
         cursorEffectSize: 40,
-        scrollSpeed: 1.0,
-        minimapPosition: 'right',
-        enableMinimap: true
+        minimapPosition: 'right'
     }, (items) => {
         elements.enableDragScroll.checked = items.enableDragScroll;
         elements.holdDuration.value = items.holdDuration;
         elements.holdDurationValue.textContent = items.holdDuration;
         elements.scrollSpeed.value = items.scrollSpeed;
         elements.scrollSpeedValue.textContent = items.scrollSpeed;
+        elements.linkOpenHoldDuration.value = items.linkOpenHoldDuration;
+        elements.linkOpenHoldDurationValue.textContent = items.linkOpenHoldDuration;
         elements.enableMinimap.checked = items.enableMinimap;
         elements.minimapWidth.value = items.minimapWidth;
         elements.minimapWidthValue.textContent = items.minimapWidth;
@@ -96,15 +102,19 @@ for (const key in elements) {
             }
         };
 
-        if (inputElement.type === 'checkbox') {
+        if (inputElement.type === 'checkbox' || inputElement.tagName === 'SELECT') {
             inputElement.addEventListener('change', saveOptions);
-        } else if (inputElement.tagName === 'SELECT') {
-             inputElement.addEventListener('change', saveOptions);
         } else {
             inputElement.addEventListener('input', () => {
                 updateValueDisplay(inputElement.id);
                 if (inputElement.id === 'cursorEffectColor') {
-                    elements.colorPreview.style.backgroundColor = `rgb(${inputElement.value})`;
+                    const rgb = inputElement.value;
+                    const parts = rgb.split(',').map(Number);
+                    if (parts.length === 3 && parts.every(p => p >= 0 && p <= 255)) {
+                        elements.colorPreview.style.backgroundColor = `rgb(${rgb})`;
+                    } else {
+                        elements.colorPreview.style.backgroundColor = `transparent`;
+                    }
                 }
             });
             inputElement.addEventListener('change', saveOptions);
@@ -112,7 +122,7 @@ for (const key in elements) {
     }
 }
 
-// Special handling for color input to show preview
+// Ensure color preview updates when page loads or color input is changed
 elements.cursorEffectColor.addEventListener('input', () => {
     try {
         const rgb = elements.cursorEffectColor.value;

@@ -2,7 +2,7 @@
 
 // Flag to prevent re-initialization if the script is injected multiple times.
 if (window.__INTELLIGENT_SCROLL_LOADED__) {
-    console.warn('Intelligent Scroll: Script already loaded. Skipping re-initialization.');
+    console.warn('Magic Scroll: Script already loaded. Skipping re-initialization.');
 } else {
     window.__INTELLIGENT_SCROLL_LOADED__ = true; // Mark script as loaded.
 
@@ -11,25 +11,26 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
     let isMouseDown = false;
     let pressTimer;
     let startX, startY;
-    let scrollLeft, scrollTop;
     let currentScrollableElement = null; // Stores the specific element being scrolled.
+    let initialScrollLeft, initialScrollTop; // Initial scroll position of the identified element.
 
-    // Hardcoded settings (previously from options page).
-    const settings = {
-        holdDuration: 250,          // Time (ms) to hold left-click for drag scroll activation.
-        dragThreshold: 5,           // Min mouse movement (pixels) to cancel hold timer.
-        minimapWidth: 40,           // Width of the Minimap scrollbar.
-        minimapOpacity: 0.03,       // Base transparency of Minimap.
-        minimapHoverOpacity: 0.15,  // Transparency of Minimap on hover.
-        thumbOpacity: 0.2,          // Transparency of the Minimap thumb.
-        thumbHoverOpacity: 0.5,     // Transparency of the Minimap thumb on hover.
-        cursorEffectColor: '0,123,255', // RGB color for the cursor effect.
-        cursorEffectSize: 40,       // Size of the cursor effect.
-        scrollSpeed: 1.0,           // Scrolling speed multiplier for drag scroll.
-        minimapPosition: 'right',   // Position of Minimap: 'right' or 'left'.
-        enableDragScroll: true,     // Enable/disable drag scroll.
-        enableMinimap: true,        // Enable/disable Minimap.
-        linkOpenHoldDuration: 2000  // Time (ms) to hold left-click on a link to open in new tab.
+    // Default settings - will be overwritten by chrome.storage.local
+    let settings = {
+        holdDuration: 250,
+        dragThreshold: 5,
+        minimapWidth: 40,
+        minimapOpacity: 0.03,
+        minimapHoverOpacity: 0.15,
+        thumbOpacity: 0.2,
+        thumbHoverOpacity: 0.5,
+        cursorEffectColor: '0,123,255',
+        cursorEffectSize: 40,
+        scrollSpeed: 1.0,
+        minimapPosition: 'right',
+        enableDragScroll: true,
+        enableMinimap: true,
+        enableLinkOpen: true, // New setting for link open
+        linkOpenHoldDuration: 2000
     };
 
     let audioContext = null;
@@ -42,7 +43,7 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
             } catch (e) {
-                console.error('Intelligent Scroll: Web Audio API not supported or failed to initialize:', e);
+                console.error('Magic Scroll: Web Audio API not supported or failed to initialize:', e);
                 audioContext = null;
             }
         }
@@ -71,7 +72,7 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
             activationOscillator.start();
             activationOscillator.stop(audioContext.currentTime + 0.1);
         } catch (e) {
-            console.error('Intelligent Scroll: Failed to play activation sound:', e);
+            console.error('Magic Scroll: Failed to play activation sound:', e);
         }
     }
 
@@ -98,7 +99,7 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
             deactivationOscillator.start();
             deactivationOscillator.stop(audioContext.currentTime + 0.1);
         } catch (e) {
-            console.error('Intelligent Scroll: Failed to play deactivation sound:', e);
+            console.error('Magic Scroll: Failed to play deactivation sound:', e);
         }
     }
 
@@ -143,8 +144,16 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
     `;
     minimapScrollbar.appendChild(minimapThumb);
 
-    // Initial setup for UI elements based on hardcoded settings.
-    function initializeUI() {
+    // Loads settings from Chrome storage.
+    function loadSettings() {
+        chrome.storage.local.get(settings, (items) => {
+            Object.assign(settings, items);
+            applySettings(); // Apply settings after loading them.
+        });
+    }
+
+    // Applies loaded/changed settings to UI elements.
+    function applySettings() {
         if (!settings.enableDragScroll) {
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
@@ -187,6 +196,18 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
         updateMinimapThumb();
     }
 
+    // Listens for setting changes from options page.
+    chrome.storage.local.onChanged.addListener((changes, namespace) => {
+        if (namespace === 'local') {
+            for (let key in changes) {
+                if (settings.hasOwnProperty(key)) {
+                    settings[key] = changes[key].newValue;
+                }
+            }
+            applySettings();
+        }
+    });
+
     // Functions to manage cursor effect visibility.
     function showCursorEffect(x, y) {
         cursorEffect.style.left = `${x}px`;
@@ -221,10 +242,7 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
             return;
         }
 
-        // Determine the actual scrollable content height.
-        // For standard pages, this is document.documentElement.scrollHeight.
-        // For specific scrollable divs, this would be their scrollHeight.
-        const totalHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+        const totalHeight = document.documentElement.scrollHeight;
         const viewportHeight = window.innerHeight;
         const currentScroll = window.scrollY;
 
@@ -287,13 +305,14 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
         const thumbRect = minimapThumb.getBoundingClientRect();
         const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
 
-        // Calculate new thumb top based on mouse movement relative to its initial click point.
-        let newThumbTop = (e.clientY - minimapRect.top) - minimapThumbOffsetFromMouse;
+        // Calculate desired thumb top based on mouse position relative to its initial click point.
+        let desiredThumbTop = (e.clientY - minimapRect.top) - minimapThumbOffsetFromMouse;
 
-        // Clamp newThumbTop to minimap bounds.
-        newThumbTop = Math.max(0, Math.min(newThumbTop, minimapRect.height - thumbRect.height));
+        // Clamp this desired position within the minimap bounds.
+        desiredThumbTop = Math.max(0, Math.min(desiredThumbTop, minimapRect.height - thumbRect.height));
 
-        const scrollRatio = newThumbTop / (minimapRect.height - thumbRect.height);
+        // Convert thumb position to scroll ratio.
+        const scrollRatio = desiredThumbTop / (minimapRect.height - thumbRect.height);
         const newScrollY = scrollRatio * scrollableHeight;
 
         window.scrollTo({ top: newScrollY, behavior: 'auto' });
@@ -310,15 +329,17 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
     // Helper to find the actual scrollable container.
     function findScrollableContainer(element) {
         let current = element;
+        // Start from the clicked element and go up the DOM tree
         while (current && current !== document.body && current !== document.documentElement) {
             const style = window.getComputedStyle(current);
-            // Check for vertical scrollability.
+            // Check for vertical scrollability (overflow-y or overflow set to scroll/auto)
+            // and if the element actually has scrollable content (scrollHeight > clientHeight)
             if ((style.overflowY === 'scroll' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflow === 'auto') && current.scrollHeight > current.clientHeight) {
-                return current;
+                return current; // Found a scrollable parent
             }
             current = current.parentNode;
         }
-        return document.documentElement; // Default to documentElement (window scroll)
+        return document.documentElement; // Default to documentElement (window scroll) if no specific scrollable element is found
     }
 
     // === Drag Scroll (Hand Tool) Logic ===
@@ -329,7 +350,7 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
         if (e.button === 0) { // Left click
             // Check if click is on a link or child of a link
             const targetLink = e.target.closest('a');
-            if (targetLink) {
+            if (targetLink && settings.enableLinkOpen) { // Only if link opening is enabled
                 linkTarget = targetLink;
                 // Store initial mouse position for link hold duration check
                 startX = e.clientX;
@@ -353,8 +374,8 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
                 currentScrollableElement = findScrollableContainer(e.target); // Find the specific scrollable element
                 
                 // Store initial scroll positions of the identified scrollable element.
-                scrollLeft = currentScrollableElement.scrollLeft || window.scrollX;
-                scrollTop = currentScrollableElement.scrollTop || window.scrollY;
+                initialScrollLeft = currentScrollableElement.scrollLeft;
+                initialScrollTop = currentScrollableElement.scrollTop;
 
                 pressTimer = setTimeout(() => {
                     if (isMouseDown && !isDraggingMinimap && !linkClickTimer) { // Ensure not dragging minimap or holding link
@@ -399,12 +420,8 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
             const deltaY = (e.clientY - startY) * settings.scrollSpeed;
 
             // Apply scroll to the identified scrollable element.
-            if (currentScrollableElement === document.documentElement) {
-                window.scrollTo(scrollLeft - deltaX, scrollTop - deltaY);
-            } else {
-                currentScrollableElement.scrollLeft = scrollLeft - deltaX;
-                currentScrollableElement.scrollTop = scrollTop - deltaY;
-            }
+            currentScrollableElement.scrollLeft = initialScrollLeft - deltaX;
+            currentScrollableElement.scrollTop = initialScrollTop - deltaY;
         }
     });
 
@@ -445,6 +462,6 @@ if (window.__INTELLIGENT_SCROLL_LOADED__) {
     });
 
     // === Initial Calls ===
-    initializeUI();
-    initializeAudioContext();
+    loadSettings(); // Load and apply settings from storage.
+    initializeAudioContext(); // Initialize Web Audio API.
 }
